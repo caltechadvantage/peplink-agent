@@ -1,0 +1,11 @@
+numpy
+PySide6
+requests
+matplotlib
+pyqtgraph
+urllib3
+python-dateutil
+pytz
+pymongo
+adafruit-circuitpython-ads1x15
+paho-mqtt>=1.5.1
