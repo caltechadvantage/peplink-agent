@@ -202,10 +202,16 @@ write_config() {
         echo '    upstream:'
         echo '      url: http://127.0.0.1:9090'
         echo ''
-        echo '  - name: novnc'
-        echo "    url: https://${NGROK_PREFIX}-screen.${NGROK_DOMAIN}"
-        echo '    upstream:'
-        echo '      url: http://127.0.0.1:6080'
+        # Only advertise the screen tunnel when the mirror is actually
+        # installed; otherwise it points at a dead :6080 and the browser
+        # gets ERR_NGROK_8012.
+        if [ "${DTS_ENABLE_SCREEN:-0}" = "1" ]; then
+            echo ''
+            echo '  - name: novnc'
+            echo "    url: https://${NGROK_PREFIX}-screen.${NGROK_DOMAIN}"
+            echo '    upstream:'
+            echo '      url: http://127.0.0.1:6080'
+        fi
         if [ -n "${SSH_TCP_ADDR:-}" ]; then
             echo ''
             echo '  - name: ssh'

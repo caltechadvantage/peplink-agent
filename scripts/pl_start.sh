@@ -27,6 +27,10 @@ fi
 echo "Starting main GUI application ($RUN_TARGET)..."
 screen -mS pl -d
 screen -S pl -X stuff "export DISPLAY=:0.0\\r"
+# Source .env so QT_QPA_PLATFORM (xcb, needed for the screen mirror) and other
+# provisioned vars reach the kiosk. The compiled-dist launcher, unlike run.sh,
+# has no other place to apply them.
+screen -S pl -X stuff "[ -f $APP_HOME/.env ] && set -a && . $APP_HOME/.env && set +a\\r"
 screen -S pl -X stuff "export PYTHONPATH=$RUN_PYPATH\\r"
 screen -S pl -X stuff "cd $APP_HOME\\r"
 screen -S pl -X stuff "python3 $RUN_TARGET\\r"
