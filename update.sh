@@ -38,13 +38,9 @@ if [ -f "$cur_dir/.env" ]; then
 fi
 
 # --- Step 1: download latest code --------------------------------------------
-#
-# Fetched as a tarball from the compiled dist repo, not `git pull`. The
-# source repo is private, so a deployed unit has no credentials to clone it
-# with; the dist repo is public and needs none. This also means a unit needs
-# no git at all, and there is no working tree to diverge or force-reset.
-#
-# Pass a branch, tag, or commit as $1 to pin a specific build (default main).
+# Tarball from the public dist repo, not `git pull`: the source repo is
+# private and a deployed unit has no credentials for it. Pass a branch, tag,
+# or commit as $1 to pin a build (default main).
 step "Step 1: Downloading latest agent code"
 DIST_REPO="${DTS_DIST_REPO:-caltechadvantage/peplink-agent}"
 target="${1:-main}"
@@ -53,39 +49,17 @@ info "Before: $ver_before"
 
 tmp_tgz="$(mktemp -t peplink-agent.XXXXXX.tar.gz)"
 tmp_dir="$(mktemp -d -t peplink-agent.XXXXXX)"
-cleanup_dl() { rm -rf "$tmp_tgz" "$tmp_dir"; }
-trap cleanup_dl EXIT
+trap 'rm -rf "$tmp_tgz" "$tmp_dir"' EXIT
 
 dl_url="https://codeload.github.com/${DIST_REPO}/tar.gz/${target}"
 info "Fetching ${dl_url}"
-if command -v curl >/dev/null 2>&1; then
-    dl_ok=0; curl -fsSL --max-time 300 -o "$tmp_tgz" "$dl_url" >>"$log_file" 2>&1 && dl_ok=1
-elif command -v wget >/dev/null 2>&1; then
-    dl_ok=0; wget -q -T 300 -O "$tmp_tgz" "$dl_url" >>"$log_file" 2>&1 && dl_ok=1
-else
-    err "neither curl nor wget is available; cannot download the agent."
-    exit 2
-fi
-if [ "${dl_ok:-0}" -ne 1 ]; then
-    err "download failed ($dl_url). Check $log_file. Aborting update."
-    exit 2
-fi
-
-if ! tar xzf "$tmp_tgz" -C "$tmp_dir" >>"$log_file" 2>&1; then
-    err "could not extract the downloaded archive. Aborting update."
-    exit 2
-fi
-# codeload unpacks to a single <repo>-<ref> directory; glob it rather than
-# assuming the name, since a tag ref drops the leading "v".
-src_dir="$(echo "$tmp_dir"/*/)"
-if [ ! -d "$src_dir" ]; then
-    err "unexpected archive layout under $tmp_dir. Aborting update."
-    exit 2
-fi
-if ! cp -r "$src_dir". "$cur_dir/" >>"$log_file" 2>&1; then
-    err "failed to copy the new agent into $cur_dir. Aborting update."
-    exit 2
-fi
+curl -fsSL --max-time 300 -o "$tmp_tgz" "$dl_url" >>"$log_file" 2>&1 \
+    || { err "download failed ($dl_url). Check $log_file."; exit 2; }
+tar xzf "$tmp_tgz" -C "$tmp_dir" >>"$log_file" 2>&1 \
+    || { err "could not extract the archive."; exit 2; }
+# codeload unpacks to <repo>-<ref>; glob it, since a tag ref drops the "v".
+cp -r "$(echo "$tmp_dir"/*/)". "$cur_dir/" >>"$log_file" 2>&1 \
+    || { err "failed to copy the new agent into $cur_dir."; exit 2; }
 
 ver_after="$(cat "$cur_dir/VERSION" 2>/dev/null || echo unknown)"
 if [ "$ver_before" = "$ver_after" ]; then
