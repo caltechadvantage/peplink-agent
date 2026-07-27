@@ -148,12 +148,16 @@ EOF
     apt-get install -y novnc websockify x11vnc wayvnc >/dev/null 2>&1 && ok "noVNC packages installed" \
         || warn "noVNC packages skipped (wayvnc may be unavailable on older OS)"
     if [ "${DTS_ENABLE_SCREEN:-0}" = "1" ]; then
+        # The kiosk runs under xcb when the mirror is on (eglfs can't be
+        # captured). Qt 6.5+ xcb needs libxcb-cursor0, which the PySide6
+        # wheel does not bundle - without it the kiosk aborts on start.
+        apt-get install -y libxcb-cursor0 >/dev/null 2>&1 \
+            && ok "libxcb-cursor0 (Qt xcb dep) installed" \
+            || warn "libxcb-cursor0 install failed - kiosk may not start under xcb"
         install_screen_autostart
-        warn "Screen mirror needs the kiosk under X11: set QT_QPA_PLATFORM=xcb"
-        warn "in .env (eglfs cannot be mirrored). Takes effect on next reboot."
+        info "Kiosk runs under xcb for mirroring (set in .env). Takes effect on reboot."
     else
-        info "Screen mirror disabled. To enable: set QT_QPA_PLATFORM=xcb and"
-        info "DTS_ENABLE_SCREEN=1 in .env, then re-run setup."
+        info "Screen mirror disabled. Enable with DTS_ENABLE_SCREEN=1 in .env."
     fi
 }
 
