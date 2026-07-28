@@ -3,14 +3,10 @@
 # Mirror the physical touchscreen over VNC and bridge it to noVNC on
 # 127.0.0.1:6080 — which the ngrok 'screen' tunnel points at.
 #
-# Runs from the desktop autostart so it inherits the session env
-# (DISPLAY/XAUTHORITY on X11, WAYLAND_DISPLAY/XDG_RUNTIME_DIR on Wayland).
-# Enable via .env:  DTS_ENABLE_SCREEN=1  (optional DTS_VNC_PASSWORD on X11).
-#
-# Pi OS Bookworm defaults to a Wayland compositor (labwc/wayfire); x11vnc
-# cannot capture Wayland, so we use wayvnc there and fall back to x11vnc on a
-# real X11 session. Either way the local touchscreen keeps working while the
-# browser shows a live, controllable mirror.
+# Runs from the desktop autostart so it inherits the Wayland session env
+# (WAYLAND_DISPLAY/XDG_RUNTIME_DIR). Enable via .env: DTS_ENABLE_SCREEN=1.
+# Pi OS Bookworm runs a Wayland compositor (labwc), so capture is via wayvnc;
+# the local touchscreen keeps working alongside the live browser mirror.
 
 cur_dir="$( cd "$(dirname "$0")/.." ; pwd -P )"
 [ -f "${cur_dir}/.env" ] && { set -a; . "${cur_dir}/.env"; set +a; }
@@ -21,30 +17,14 @@ cur_dir="$( cd "$(dirname "$0")/.." ; pwd -P )"
 LOG="$HOME/.pl/screen_share.log"
 mkdir -p "$HOME/.pl"
 
-if [ "${XDG_SESSION_TYPE:-}" = "wayland" ] || [ -n "${WAYLAND_DISPLAY:-}" ]; then
-    # --- Wayland session: use wayvnc (captures XWayland clients too) ---
-    if ! pgrep -x wayvnc >/dev/null 2>&1; then
-        echo "$(date) starting wayvnc (Wayland)" >>"$LOG"
-        wayvnc 127.0.0.1 5900 >>"$LOG" 2>&1 &
-    fi
-    if [ -n "${DTS_VNC_PASSWORD:-}" ]; then
-        echo "NOTE: DTS_VNC_PASSWORD is not applied under wayvnc — protect the" >>"$LOG"
-        echo "      screen endpoint with ngrok edge auth instead." >>"$LOG"
-    fi
-else
-    # --- X11 session: use x11vnc (supports an -rfbauth password) ---
-    export DISPLAY="${DISPLAY:-:0}"
-    if [ -n "${DTS_VNC_PASSWORD:-}" ]; then
-        x11vnc -storepasswd "$DTS_VNC_PASSWORD" "$HOME/.pl/vncpasswd" >/dev/null 2>&1
-        AUTH=(-rfbauth "$HOME/.pl/vncpasswd")
-    else
-        AUTH=(-nopw)
-    fi
-    if ! pgrep -x x11vnc >/dev/null 2>&1; then
-        echo "$(date) starting x11vnc (X11)" >>"$LOG"
-        x11vnc -display :0 -auth guess -forever -shared -noxdamage -repeat \
-            -rfbport 5900 -localhost "${AUTH[@]}" -bg -o "$LOG"
-    fi
+# Pin capture to the DSI touchscreen: a phantom HDMI output (from
+# hdmi_force_hotplug) can otherwise be grabbed first and mirror black.
+# Match our own instance in the guard - rpi-connect runs a separate
+# wayvnc on a unix socket that a plain "pgrep -x wayvnc" collides with.
+if ! pgrep -f "wayvnc.*127.0.0.1 5900" >/dev/null 2>&1; then
+    out="$(wlr-randr 2>/dev/null | grep -iE '^[[:alnum:]-]+ ' | awk '{print $1}' | grep -i DSI | head -1)"
+    echo "$(date) starting wayvnc output=${out:-auto}" >>"$LOG"
+    wayvnc ${out:+--output="$out"} 127.0.0.1 5900 >>"$LOG" 2>&1 &
 fi
 
 # Bridge noVNC (browser, 6080) -> VNC (5900); both localhost, ngrok adds TLS.

@@ -84,7 +84,6 @@ if [ -n "${DTS_NGROK_AUTHTOKEN:-}" ]; then
              DTS_SSH_TCP_ADDR="${DTS_SSH_TCP_ADDR:-}" \
              DTS_NGROK_DOMAIN="${DTS_NGROK_DOMAIN:-}" \
              DTS_ENABLE_SCREEN="${DTS_ENABLE_SCREEN:-}" \
-             DTS_VNC_PASSWORD="${DTS_VNC_PASSWORD:-}" \
              bash ${cur_dir}/scripts/setup_ngrok.sh
     else
         echo "scripts/setup_ngrok.sh not found - skipping remote access."
