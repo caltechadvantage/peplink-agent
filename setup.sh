@@ -1,43 +1,23 @@
 #!/usr/bin/env bash
 
 cur_dir="$( cd "$(dirname "$0")" ; pwd -P )"
-user="$(id -u -n)"
 
-# Load fleet/device settings (DTS_NGROK_AUTHTOKEN, etc.) if present.
-# .env is gitignored; vars are passed explicitly to the sudo'd ngrok
-# step below (sudo -E is rejected by default Pi sudoers).
+# Load fleet/device settings (e.g. DTS_NGROK_AUTHTOKEN) if present.
+# .env is gitignored. Vars are passed explicitly to the sudo'd ngrok step
+# below (not via sudo -E, which default Pi sudoers often rejects).
 if [ -f "${cur_dir}/.env" ]; then
     set -a; . "${cur_dir}/.env"; set +a
     echo "Loaded ${cur_dir}/.env"
 fi
 
-ROUTER_TYPE=""
-
-while [[ "$#" -gt 0 ]]; do
-    case $1 in
-        --type)
-            if [[ -n "$2" && "$2" != --* ]]; then
-                ROUTER_TYPE="$2"
-                shift 2
-            else
-                echo "Error: --type requires a value (e.g., cradlepoint)"
-                exit 1
-            fi
-            ;;
-        *)
-            echo "Unknown parameter passed: $1"
-            exit 1
-            ;;
-    esac
-done
-if [[ -n "$ROUTER_TYPE" ]]; then
-    echo "ROUTER_TYPE = \"$ROUTER_TYPE\"" > local_settings.py
-fi
-
-echo "Setting up Router Monitoring Application (${ROUTER_TYPE})"
-
 sudo apt update -y
-sudo apt install -y libtiff-dev libwebp-dev python3-dev
+sudo apt install -y libtiff-dev libwebp-dev python3-dev qt6-base-dev qt6-base-dev-tools libqt6gui6 libqt6widgets6 libqt6core6
+
+# Installing grpcurl
+wget https://github.com/fullstorydev/grpcurl/releases/download/v1.9.1/grpcurl_1.9.1_linux_arm64.tar.gz
+tar -xzf grpcurl_1.9.1_linux_arm64.tar.gz
+sudo mv grpcurl /usr/local/bin/
+rm grpcurl_1.9.1_linux_arm64.tar.gz
 
 # Installing mongodb
 wget -qO - https://www.mongodb.org/static/pgp/server-4.4.asc | sudo apt-key add -
@@ -71,23 +51,19 @@ Type=Application
 Exec=bash /opt/pl_start.sh
 EOL
 
-# Remote access (ngrok + ttyd + wayvnc/noVNC) — installs only when
-# an authtoken is in .env. Same idempotent script the Starlink build
-# uses, ported here so a Peplink5 unit can be remotely shelled into
-# from the DTS dashboard without paying for Raspberry Pi Connect.
+# Remote access (ngrok) — auto-configured when an authtoken is available.
+# Prefix is derived from the device serial, so no per-device input is needed.
 if [ -n "${DTS_NGROK_AUTHTOKEN:-}" ]; then
-    if [ -f "${cur_dir}/scripts/setup_ngrok.sh" ]; then
-        echo "Setting up ngrok remote access..."
-        sudo DTS_NON_INTERACTIVE=1 \
-             DTS_NGROK_AUTHTOKEN="${DTS_NGROK_AUTHTOKEN}" \
-             DTS_NGROK_PREFIX="${DTS_NGROK_PREFIX:-}" \
-             DTS_SSH_TCP_ADDR="${DTS_SSH_TCP_ADDR:-}" \
-             DTS_NGROK_DOMAIN="${DTS_NGROK_DOMAIN:-}" \
-             DTS_ENABLE_SCREEN="${DTS_ENABLE_SCREEN:-}" \
-             bash ${cur_dir}/scripts/setup_ngrok.sh
-    else
-        echo "scripts/setup_ngrok.sh not found - skipping remote access."
-    fi
+    echo "Setting up ngrok remote access..."
+    # Pass settings explicitly (reliable under default sudoers; empty values
+    # fall back to the script's own defaults via ${VAR:-default}).
+    sudo DTS_NON_INTERACTIVE=1 \
+         DTS_NGROK_AUTHTOKEN="${DTS_NGROK_AUTHTOKEN}" \
+         DTS_NGROK_PREFIX="${DTS_NGROK_PREFIX:-}" \
+         DTS_SSH_TCP_ADDR="${DTS_SSH_TCP_ADDR:-}" \
+         DTS_NGROK_DOMAIN="${DTS_NGROK_DOMAIN:-}" \
+         DTS_ENABLE_SCREEN="${DTS_ENABLE_SCREEN:-}" \
+         bash ${cur_dir}/scripts/setup_ngrok.sh
 else
-    echo "Skipping ngrok setup - add DTS_NGROK_AUTHTOKEN to ${cur_dir}/.env to enable."
+    echo "Skipping ngrok setup — add DTS_NGROK_AUTHTOKEN to ${cur_dir}/.env to enable."
 fi

@@ -1,4 +1,4 @@
-"""Example per-deployment overrides for the Peplink5 agent.
+"""Example per-deployment overrides for the Peplink agent.
 
 Copy this file to ``local_settings.py`` (which is gitignored) and fill
 in your tenant's values. The bottom of ``settings.py`` does
@@ -11,10 +11,10 @@ first boot and won't onboard to ThingsBoard. An already-provisioned
 unit (one with a ``tb_token`` in ``~/.pl/config.json``) keeps running
 without them — the keys are only used the first time.
 
-Peplink router credentials (``password`` for the admin login,
-``wifi_password`` for the LAN Wi-Fi) live in ``~/.pl/config.json`` —
-edit that file or use the on-device Settings screen rather than
-overriding them here.
+Most other deployment knobs live in ``~/.pl/config.json`` (Peplink
+router IP / username / password, telemetry interval, retention) — edit
+that file or use the on-device Settings screen rather than overriding
+them here.
 """
 
 # === ThingsBoard provisioning (REQUIRED for fresh installs) =================

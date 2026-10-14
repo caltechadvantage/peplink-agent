@@ -24,7 +24,7 @@ cp icon.png ${PACKAGE_NAME}-${PACKAGE_VERSION}/usr/share/icons/hicolor/512x512/a
 echo "Creating application .desktop file..."
 cat > ${PACKAGE_NAME}-${PACKAGE_VERSION}/usr/share/applications/${PACKAGE_NAME}.desktop <<EOL
 [Desktop Entry]
-Version=1.0
+Version=1.1
 Name=Peplink5
 Comment=Monitor Routers
 Exec=Peplink5
@@ -38,7 +38,7 @@ EOL
 echo "Creating autostart .desktop file..."
 cat > ${PACKAGE_NAME}-${PACKAGE_VERSION}/etc/xdg/autostart/${PACKAGE_NAME}.desktop <<EOL
 [Desktop Entry]
-Version=1.0
+Version=1.1
 Name=Peplink5 Autostart
 Comment=Automatically start Peplink5 application at login
 Exec=Peplink5
